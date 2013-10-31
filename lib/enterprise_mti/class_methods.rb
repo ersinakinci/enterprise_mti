@@ -1,0 +1,1 @@
+require_relative 'class_methods/class_methods'

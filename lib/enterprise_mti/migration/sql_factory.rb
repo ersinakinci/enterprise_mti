@@ -1,0 +1,2 @@
+require_relative 'sql_factory/sql_factory'
+require_relative 'sql_factory/postgres_sql_factory'

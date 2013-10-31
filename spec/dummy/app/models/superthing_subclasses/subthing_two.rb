@@ -1,0 +1,2 @@
+class SubthingTwo < Superthing
+end
