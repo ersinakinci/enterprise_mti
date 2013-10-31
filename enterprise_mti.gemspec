@@ -6,13 +6,17 @@ require "enterprise_mti/version"
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|
   s.name        = "enterprise_mti"
+  s.platform    = Gem::Platform::RUBY
   s.version     = EnterpriseMti::VERSION
   s.authors     = ["Ersin Akinci"]
   s.email       = ["ersinakinci@gmail.com"]
-  s.homepage    = "TODO"
-  s.summary     = "Multiple table inheritance for ActiveRecord models with referential integrity"
+  s.homepage    = "https://github.com/earksiinni/enterprise_mti"
+  s.summary     = "Multiple table inheritance for Active Record with referential integrity"
   s.description = <<-DESC
-    Enterprise MTI is a 
+    Enterprise MTI is gem that adds multiple table inheritance to Active
+    Record models backed by database-level referential integrity.  The
+    design and the project's name are inspired by Dan Chak's book,
+    "Enterprise Rails," from which some code has been taken.
   DESC
   s.license     = 'MIT'
 
