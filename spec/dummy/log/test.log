@@ -1641,3 +1641,43 @@ PG::DuplicateTable: ERROR:  relation "superthings" already exists
   [1m[36m (2.3ms)[0m  [1mDROP TABLE "subthing_ones"[0m
   [1m[35m (2.4ms)[0m  DROP TABLE "superthings"
   [1m[36m (4.0ms)[0m  [1mCOMMIT[0m
+  [1m[36m (0.2ms)[0m  [1mBEGIN[0m
+  [1m[35m (25.0ms)[0m  CREATE TABLE "superthings" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (20.1ms)[0m  [1mCREATE TABLE "subthing_ones" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) [0m
+  [1m[35m (12.8ms)[0m  CREATE TABLE "subthing_twos" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (38.8ms)[0m  [1mALTER TABLE superthings ADD COLUMN subthing_ones_id BIGINT NOT NULL UNIQUE REFERENCES subthing_ones(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD COLUMN subthing_twos_id BIGINT NOT NULL UNIQUE REFERENCES subthing_twos(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD CONSTRAINT superthings_xor CHECK ( (subthing_ones_id IS NOT NULL)::INTEGER + (subthing_twos_id IS NOT NULL)::INTEGER = 1 );ALTER TABLE subthing_ones ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_ones_id) DEFERRABLE INITIALLY DEFERRED ;ALTER TABLE subthing_twos ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_twos_id) DEFERRABLE INITIALLY DEFERRED ;[0m
+  [1m[35m (12.4ms)[0m  CREATE TABLE "containers" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (9.4ms)[0m  [1mCOMMIT[0m
+  [1m[35m (0.3ms)[0m  BEGIN
+  [1m[36m (4.2ms)[0m  [1mDROP TABLE "containers"[0m
+  [1m[35m (10.5ms)[0m  ALTER TABLE subthing_ones DROP CONSTRAINT id_fkey;ALTER TABLE subthing_twos DROP CONSTRAINT id_fkey;ALTER TABLE superthings DROP CONSTRAINT superthings_xor;ALTER TABLE superthings DROP COLUMN subthing_ones_id;ALTER TABLE superthings DROP COLUMN subthing_twos_id;
+  [1m[36m (3.1ms)[0m  [1mDROP TABLE "subthing_twos"[0m
+  [1m[35m (2.5ms)[0m  DROP TABLE "subthing_ones"
+  [1m[36m (3.6ms)[0m  [1mDROP TABLE "superthings"[0m
+  [1m[35m (17.9ms)[0m  COMMIT
+  [1m[36m (0.8ms)[0m  [1mBEGIN[0m
+  [1m[35m (10.8ms)[0m  CREATE TABLE "superthings" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (10.3ms)[0m  [1mCREATE TABLE "subthing_ones" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) [0m
+  [1m[35m (15.9ms)[0m  CREATE TABLE "subthing_twos" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (13.8ms)[0m  [1mALTER TABLE superthings ADD COLUMN subthing_ones_id BIGINT NOT NULL UNIQUE REFERENCES subthing_ones(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD COLUMN subthing_twos_id BIGINT NOT NULL UNIQUE REFERENCES subthing_twos(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD CONSTRAINT superthings_xor CHECK ( (subthing_ones_id IS NOT NULL)::INTEGER + (subthing_twos_id IS NOT NULL)::INTEGER = 1 );ALTER TABLE subthing_ones ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_ones_id) DEFERRABLE INITIALLY DEFERRED ;ALTER TABLE subthing_twos ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_twos_id) DEFERRABLE INITIALLY DEFERRED ;[0m
+  [1m[35m (9.3ms)[0m  CREATE TABLE "containers" ("id" serial primary key, "content" text, "created_at" timestamp, "updated_at" timestamp) 
+  [1m[36m (3.3ms)[0m  [1mCOMMIT[0m
+  [1m[35m (12.6ms)[0m  ALTER TABLE subthing_ones DROP CONSTRAINT id_fkey;ALTER TABLE subthing_twos DROP CONSTRAINT id_fkey;ALTER TABLE superthings DROP CONSTRAINT superthings_xor;ALTER TABLE superthings DROP COLUMN subthing_ones_id;ALTER TABLE superthings DROP COLUMN subthing_twos_id;
+  [1m[36m (31.8ms)[0m  [1m select * from information_schema.columns where table_name='superthings';
+[0m
+  [1m[35m (19.7ms)[0m   select * from information_schema.constraint_column_usage where table_name='superthings';
+
+  [1m[36m (26.9ms)[0m  [1m select * from information_schema.columns where table_name='superthings';
+[0m
+  [1m[35m (36.3ms)[0m  ALTER TABLE superthings ADD COLUMN subthing_ones_id BIGINT NOT NULL UNIQUE REFERENCES subthing_ones(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD COLUMN subthing_twos_id BIGINT NOT NULL UNIQUE REFERENCES subthing_twos(id) DEFERRABLE INITIALLY DEFERRED;ALTER TABLE superthings ADD CONSTRAINT superthings_xor CHECK ( (subthing_ones_id IS NOT NULL)::INTEGER + (subthing_twos_id IS NOT NULL)::INTEGER = 1 );ALTER TABLE subthing_ones ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_ones_id) DEFERRABLE INITIALLY DEFERRED ;ALTER TABLE subthing_twos ADD CONSTRAINT id_fkey FOREIGN KEY(id) REFERENCES superthings(subthing_twos_id) DEFERRABLE INITIALLY DEFERRED ;
+  [1m[36m (42.5ms)[0m  [1m select * from information_schema.columns where table_name='superthings';
+[0m
+  [1m[35m (55.6ms)[0m   select * from information_schema.columns where table_name='superthings';
+
+  [1m[36m (0.2ms)[0m  [1mBEGIN[0m
+  [1m[35m (2.4ms)[0m  DROP TABLE "containers"
+  [1m[36m (11.4ms)[0m  [1mALTER TABLE subthing_ones DROP CONSTRAINT id_fkey;ALTER TABLE subthing_twos DROP CONSTRAINT id_fkey;ALTER TABLE superthings DROP CONSTRAINT superthings_xor;ALTER TABLE superthings DROP COLUMN subthing_ones_id;ALTER TABLE superthings DROP COLUMN subthing_twos_id;[0m
+  [1m[35m (15.2ms)[0m  DROP TABLE "subthing_twos"
+  [1m[36m (5.8ms)[0m  [1mDROP TABLE "subthing_ones"[0m
+  [1m[35m (5.3ms)[0m  DROP TABLE "superthings"
+  [1m[36m (16.9ms)[0m  [1mCOMMIT[0m
