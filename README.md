@@ -173,4 +173,4 @@ The original inspiration, design, and code for Enterprise MTI was provided by [D
 License
 =======
 
-MIT License.  Copyright 2013 [Ersin Akinci](http://www.ersinakinci.com).
+MIT License.  Copyright 2013-2014 [Ersin Akinci](http://www.ersinakinci.com).
