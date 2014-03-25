@@ -71,10 +71,23 @@ module EnterpriseMti
         !self.descendants.include?(reflection_class.call(r))
       }.collect { |r| reflection_class.call(r) }
     
-      # Add read-only access to container_classes
       class << self
+        # Add read-only access to container_classes
         def container_classes
           @container_classes
+        end
+        
+        # Attempt to redirect unknown methods to subclass instances
+        # so that superclass_instance.subclass_accessor just works
+        def method_missing(method, *args)
+          target = ""
+          descendants.each do |subclass|
+            accessor = subclass.to_s.split("::").last.underscore
+            if self.respond_to?(accessor) && self.send(accessor) do
+              self.send(accessor).send(method, *args)
+              break
+            end
+          end
         end
       end
     end
@@ -101,22 +114,25 @@ module EnterpriseMti
           action_suffix = nil
           action_name   = action.to_s
         
-          if action.to_s.last(1) == '!'
+          if action_name.last(1) == '!'
             action_suffix = '!'
             action_name   = action.to_s[0..-2]
           end
 
+          # E.g., Subklass.create_with_superclass_instance!(superclass_instance: blah) =>
+          #       Subklass.create!().superclass_instance = blah
           subclass.define_singleton_method "#{action_name}_with_superclass_instance#{action_suffix}" do |*args, &block|
             self.send("#{action_name}#{action_suffix}", *args, &block).superclass_instance = args.last[:superclass_instance]
           end
         
           superclass.class_eval do
-          
+            # E.g., Superklass.create_foo_subclass!() =>
+            #       Foo.create_with_superclass_instance!(superclass_instance: superclass)
             define_method "#{action_name}_#{subclass_underscore_name}_subclass#{action_suffix}" do |*args, &block|
               args.last[:superclass_instance] = self
               subclass.send "#{action_name}_with_superclass_instance#{action_suffix}", *args, &block
             end
-          
+            
             define_method "#{subclass_underscore_name}_with_superclass_instance=" do |value|
               value.superclass_instance = self
               self.send "#{subclass_underscore_name}=", value
