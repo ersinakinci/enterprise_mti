@@ -33,7 +33,10 @@ For example, given a container class `Closet`, a superclass `Shoes`, and subclas
     closet.build_white_shoes
     closet.create_red_shoes
 
-Etc.
+Any methods accessible to subclass instances are also magically accessible to superclass instances:
+
+    closet.shoes.ruby?           # => returns "true" if we have red shoes
+    closet.shoes.white_intensity # => returns white_shoes(white_intensity)
 
 Installation
 ------------
