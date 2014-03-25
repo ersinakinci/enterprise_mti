@@ -83,7 +83,7 @@ module EnterpriseMti
           target = ""
           descendants.each do |subclass|
             accessor = subclass.to_s.split("::").last.underscore
-            if self.respond_to?(accessor) && self.send(accessor) do
+            if self.respond_to?(accessor) && self.send(accessor)
               self.send(accessor).send(method, *args)
               break
             end
@@ -129,6 +129,7 @@ module EnterpriseMti
             # E.g., Superklass.create_foo_subclass!() =>
             #       Foo.create_with_superclass_instance!(superclass_instance: superclass)
             define_method "#{action_name}_#{subclass_underscore_name}_subclass#{action_suffix}" do |*args, &block|
+              args.push Hash.new if args.last.class != Hash
               args.last[:superclass_instance] = self
               subclass.send "#{action_name}_with_superclass_instance#{action_suffix}", *args, &block
             end
