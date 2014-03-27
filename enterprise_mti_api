@@ -1,0 +1,39 @@
+container class -> superclass -> subclass
+note            -> source     -> film_source
+
+Superclass methods
+------------------
+source              # Superclass instance
+source.title        # Superclass attribute
+source.duration     # Subclass attribute
+source.film_source  # Subclass instance
+source.film_source= # Subclass assignment
+source.film
+source.film=
+Source.create_film_source
+Source.build_film_source
+Source.container_classes
+source.subclass
+source.subclass_instance
+
+Subclass methods
+----------------
+film_source.superclass
+film_source.superclass_instance
+film_source.source
+FilmSource.create
+film_source.save
+film_source.destroy
+
+Container class methods
+-----------------------
+note.source
+note.film_source
+note.source = Source.new || FilmSource.new
+note.film_source = Source.new || FilmSource.new
+
+To create a subclass:
+---------------------
+FilmSource.create(superclass_instance: source)
+source.create_film_source
+note.create_film_source
