@@ -171,9 +171,8 @@ module EnterpriseMti
           
           def subclass_tables_id_alterations_down
             subclass_tables.collect do |subclass_table|
-              alter_table subclass_table do
-                drop_constraint 'id_fkey'
-              end
+              sql = alter_table(subclass_table){ drop_constraint "id_fkey" }
+              sql << alter_table(subclass_table){ drop_column "#{superclass_table.to_s.singularize}_id" }
             end
           end
           

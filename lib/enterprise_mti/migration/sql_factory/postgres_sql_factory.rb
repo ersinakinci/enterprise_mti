@@ -24,7 +24,8 @@ module EnterpriseMti
               END IF;
               RETURN NEW;
             END;
-          $$ LANGUAGE plpgsql;"
+          $$ LANGUAGE plpgsql;
+          "
         end 
         
         def subclass_table_valid_foreign_key_constraint_trigger(constraint_trigger, function, subclass_table)
@@ -32,7 +33,8 @@ module EnterpriseMti
              AFTER INSERT OR UPDATE ON #{subclass_table}
              DEFERRABLE INITIALLY DEFERRED
              FOR EACH ROW
-             EXECUTE PROCEDURE #{function};"
+             EXECUTE PROCEDURE #{function};
+             "
         end
         
         def superclass_table_xor_function(xor_func, superclass_table, subclass_tables)
@@ -50,7 +52,8 @@ module EnterpriseMti
                END IF;
                RETURN NEW;
              END;
-           $$ LANGUAGE plpgsql;"
+           $$ LANGUAGE plpgsql;
+           "
         end
           
         def superclass_table_xor_constraint_trigger(constraint_trigger, function, superclass_table)
@@ -60,7 +63,8 @@ module EnterpriseMti
              AFTER INSERT OR UPDATE ON #{superclass_table}
              DEFERRABLE INITIALLY DEFERRED
              FOR EACH ROW
-             EXECUTE PROCEDURE #{function};"
+             EXECUTE PROCEDURE #{function};
+             "
         end
         
         private
