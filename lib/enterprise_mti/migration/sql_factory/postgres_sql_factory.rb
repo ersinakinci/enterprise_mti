@@ -28,15 +28,6 @@ module EnterpriseMti
           "
         end 
         
-        def subclass_table_valid_foreign_key_constraint_trigger(constraint_trigger, function, subclass_table)
-          "CREATE CONSTRAINT TRIGGER #{constraint_trigger}
-             AFTER INSERT OR UPDATE ON #{subclass_table}
-             DEFERRABLE INITIALLY DEFERRED
-             FOR EACH ROW
-             EXECUTE PROCEDURE #{function};
-             "
-        end
-        
         def superclass_table_xor_function(xor_func, superclass_table, subclass_tables)
           superclass_table = superclass_table.to_s
           
@@ -55,12 +46,29 @@ module EnterpriseMti
            $$ LANGUAGE plpgsql;
            "
         end
+        
+        def superclass_table_container_id_not_null_function(function, superclass_table)
+          superclass_table = superclass_table.to_s
           
-        def superclass_table_xor_constraint_trigger(constraint_trigger, function, superclass_table)
+          "CREATE FUNCTION #{function} RETURNS TRIGGER AS $$
+             DECLARE
+               new_row #{superclass_table}%ROWTYPE;
+             BEGIN
+               SELECT * INTO new_row FROM #{superclass_table} WHERE id = NEW.id;
+               IF new_row.id IS NULL THEN
+                 RAISE EXCEPTION 'null value in column \"%\" violates not-null constraint', TG_COLUMN_NAME;
+               END IF;
+               RETURN NEW;
+             END;
+           $$ LANGUAGE plpgsql;
+           "
+        end
+        
+        def create_constraint_trigger(constraint_trigger, function, table)
           superclass_table = superclass_table.to_s
           
           "CREATE CONSTRAINT TRIGGER #{constraint_trigger}
-             AFTER INSERT OR UPDATE ON #{superclass_table}
+             AFTER INSERT OR UPDATE ON #{table}
              DEFERRABLE INITIALLY DEFERRED
              FOR EACH ROW
              EXECUTE PROCEDURE #{function};

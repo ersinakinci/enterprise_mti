@@ -3,7 +3,7 @@ module EnterpriseMti
     module SqlFactory
       
       class SqlFactory
-        attr_accessor :superclass_table, :subclass_tables
+        attr_accessor :superclass_table, :subclass_tables, :container_class_table
       
         def sql_for_up
           setup
@@ -18,14 +18,18 @@ module EnterpriseMti
         protected
         
           attr_accessor :superclass_table_xor_function_name, :superclass_table_xor_constraint_trigger_name
+          attr_accessor :superclass_table_container_id_not_null_function_name,
+                        :superclass_table_container_id_not_null_constraint_trigger_name
           attr_accessor :subclass_table_valid_foreign_key_function_names, :subclass_table_valid_foreign_key_constraint_trigger_names
           
         private
           
           def setup
-            self.superclass_table_xor_function_name           = "#{superclass_table.to_s.singularize}_types_xor()"
-            self.superclass_table_xor_constraint_trigger_name = superclass_table_xor_function_name[0..-3]
-            self.subclass_table_valid_foreign_key_function_names = {}
+            self.superclass_table_xor_function_name                        = "#{superclass_table.to_s.singularize}_types_xor()"
+            self.superclass_table_xor_constraint_trigger_name              = "#{superclass_table.to_s.singularize}_types_xor_trig"
+            self.superclass_table_container_id_not_null_function_name           = "#{superclass_table}_#{container_class_table.to_s.singularize}_not_null()"
+            self.superclass_table_container_id_not_null_constraint_trigger_name = "#{superclass_table}_#{container_class_table.to_s.singularize}_not_null_trig"
+            self.subclass_table_valid_foreign_key_function_names           = {}
             self.subclass_table_valid_foreign_key_constraint_trigger_names = {}
             
             subclass_tables.map do |subclass_table|
@@ -35,17 +39,21 @@ module EnterpriseMti
                 "#{subclass_table}_valid_#{superclass_table.to_s.singularize}_id_trig"
             end
           end
-      
+          
           ## Up methods (superclass) ##
           
           def superclass_table_up
-            [superclass_table_foreign_keys_up, superclass_table_xor_function_up, superclass_table_xor_constraint_trigger_up]
+            if self.container_class_table
+              [superclass_table_container_mod_up, superclass_table_foreign_keys_up, superclass_table_xor_function_up, superclass_table_xor_constraint_trigger_up]
+            else
+              [superclass_table_foreign_keys_up, superclass_table_xor_function_up, superclass_table_xor_constraint_trigger_up]
+            end
           end
           
           def superclass_table_foreign_keys_up
-            subclass_tables.map do |subclass_table|
+            subclass_tables.collect do |subclass_table|
               alter_table superclass_table do
-                add_column "#{subclass_table}_id",
+                add_column "#{subclass_table.to_s.singularize}_id",
                 type: id_type,
                 nullable: false,
                 unique: true,
@@ -55,22 +63,27 @@ module EnterpriseMti
             end
           end
           
-          #def superclass_table_xor_constraint_up
-          #  alter_table superclass_table do
-          #    add_constraint "#{superclass_table}_xor", type: :check do
-          #      subclass_tables.map { |subclass_table|
-          #        "(#{subclass_table}_id IS #{not_null})::#{integer}"
-          #      }.join(' + ') << ' = 1'
-          #    end
-          #  end
-          #end
-          
           def superclass_table_xor_function_up
             superclass_table_xor_function(superclass_table_xor_function_name, superclass_table, subclass_tables) # DB-specific
           end
           
           def superclass_table_xor_constraint_trigger_up
-            superclass_table_xor_constraint_trigger(superclass_table_xor_constraint_trigger_name, superclass_table_xor_function_name, superclass_table)
+            create_constraint_trigger(superclass_table_xor_constraint_trigger_name, superclass_table_xor_function_name, superclass_table) # DB-specific
+          end
+          
+          def superclass_table_container_mod_up
+            sql = alter_table(superclass_table) { add_column "#{container_class_table.to_s.singularize}_id",
+                                                  type: id_type,
+                                                  unique: true,
+                                                  references: { table: container_class_table, column: "id" },
+                                                  defer: true }
+                                                  
+            sql << superclass_table_container_id_not_null_function(superclass_table_container_id_not_null_function_name,
+                                                                   superclass_table)
+                                                                   
+            sql << create_constraint_trigger(superclass_table_container_id_not_null_constraint_trigger_name,
+                                             superclass_table_container_id_not_null_function_name,
+                                             superclass_table)
           end
           
           ## Up methods (subclass) ##
@@ -83,17 +96,17 @@ module EnterpriseMti
           end
           
           def subclass_tables_id_alterations_up
-            subclass_tables.map do |subclass_table|
+            subclass_tables.collect do |subclass_table|
               alter_table subclass_table do
                 add_constraint "id_fkey", type: :foreign_key, column: 'id' do
-                  options_parser references: { table: superclass_table, column: "#{subclass_table}_id" }, defer: true
+                  options_parser references: { table: superclass_table, column: "#{subclass_table.to_s.singularize}_id" }, defer: true
                 end
               end
             end
           end
           
           def subclass_tables_foreign_keys_up
-            subclass_tables.map do |subclass_table|
+            subclass_tables.collect do |subclass_table|
               alter_table subclass_table do
                 add_column "#{superclass_table.to_s.singularize}_id",
                 type: id_type,
@@ -107,26 +120,26 @@ module EnterpriseMti
           end
           
           def subclass_tables_valid_foreign_key_functions_up
-            #sql = ""
             self.subclass_table_valid_foreign_key_function_names.collect do |subclass_table, function|
               subclass_table_valid_foreign_key_function(function, subclass_table, superclass_table)  # DB-specific
             end
-            #sql
           end
           
           def subclass_tables_valid_foreign_key_constraint_triggers_up
-            #sql = ""
             subclass_table_valid_foreign_key_constraint_trigger_names.collect do |subclass_table, constraint_trigger|
               function = subclass_table_valid_foreign_key_function_names[subclass_table]
-              subclass_table_valid_foreign_key_constraint_trigger(constraint_trigger, function, subclass_table)  # DB-specific
+              create_constraint_trigger(constraint_trigger, function, subclass_table)  # DB-specific
             end
-            #sql
           end
           
           ## Down methods (superclass) ##
           
           def superclass_table_down
-            [superclass_table_xor_constraint_trigger_down, superclass_table_xor_function_down, superclass_table_foreign_keys_down]
+            if container_class_table
+              [superclass_table_xor_constraint_trigger_down, superclass_table_xor_function_down, superclass_table_foreign_keys_down, superclass_table_container_mod_down]
+            else
+              [superclass_table_xor_constraint_trigger_down, superclass_table_xor_function_down, superclass_table_foreign_keys_down]
+            end
           end
           
           #def superclass_table_xor_constraint_down
@@ -144,11 +157,17 @@ module EnterpriseMti
           end
           
           def superclass_table_foreign_keys_down
-            subclass_tables.map do |subclass_table|
+            subclass_tables.collect do |subclass_table|
               alter_table superclass_table do
-                drop_column("#{subclass_table}_id")
+                drop_column("#{subclass_table.to_s.singularize}_id")
               end
             end
+          end
+          
+          def superclass_table_container_mod_down
+            sql = drop_trigger(superclass_table_container_id_not_null_constraint_trigger_name, superclass_table)
+            sql << drop_function(superclass_table_container_id_not_null_function_name)
+            sql << alter_table(superclass_table) { drop_column("#{container_class_table.to_s.singularize}_id") }
           end
           
           ## Down methods (subclass) ##

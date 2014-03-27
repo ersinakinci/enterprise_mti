@@ -11,10 +11,11 @@ module EnterpriseMti
           sql_factory = SqlFactory::PostgresSqlFactory.new
         end
     
-        sql_factory.superclass_table = opts[:superclass_table]
-        sql_factory.subclass_tables = opts[:subclass_tables]
+        sql_factory.superclass_table      = opts[:superclass_table]
+        sql_factory.subclass_tables       = opts[:subclass_tables]
+        sql_factory.container_class_table = opts[:container_class_table]
     
-        sql = sql_factory.sql_for_up if opts[:direction] == :up
+        sql = sql_factory.sql_for_up if opts[:direction]   == :up
         sql = sql_factory.sql_for_down if opts[:direction] == :down
         
         execute sql
