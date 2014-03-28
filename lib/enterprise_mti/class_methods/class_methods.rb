@@ -180,16 +180,23 @@ module EnterpriseMti
           superc.define_singleton_method "#{action}_#{subc_name}#{suffix}" do |*args, &block|
             superc_instance = nil
             ActiveRecord::Base.transaction do
-              args << {} unless args.last.class == Hash
+              #puts "ARGS: " + args.to_s
+              args << Hash.new unless args.last.class == Hash
+              #puts "ARGS: " + args.to_s
               superc_args = Array.new(args)
-              superc_args[-1] = superc_args.last.select { |k,v| superc.attribute_names.include? k.to_s }.collect { |k,v| k = k.to_sym }
+              #puts "SUPERC ARGS: " + superc_args.to_s
+              superc_args[-1] = superc_args.last.select { |k,v| superc.attribute_names.include? k.to_s }
+              #puts "SUPERC ARGS: " + superc_args.to_s
               subc_args = Array.new(args)
-              subc_args[-1] = subc_args.last.select { |k,v| subc.attribute_names.include? k.to_s }.collect { |k,v| k = k.to_sym }
+              #puts "SUBC ARGS: " + subc_args.to_s
+              subc_args[-1] = subc_args.last.select { |k,v| subc.attribute_names.include? k.to_s }
+              #puts "SUBC ARGS: " + subc_args.to_s
               #puts "SUPERC ARGS: " + superc_args.to_s
               #puts "SUBC: #{subc.inspect}"
               #puts "SUPERC: #{superc.inspect}"
           
               superc_instance = superc.send action, *superc_args
+              #puts "SUBC ARGS: " + subc_args.to_s
               subc_args[-1][superc_name] = superc_instance
               #puts "SUBC ARGS: " + subc_args.to_s
               subc_instance = subc.send "#{action}_without_auto_superclass#{suffix}", *subc_args

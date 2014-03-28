@@ -55,7 +55,6 @@ module EnterpriseMti
               alter_table superclass_table do
                 add_column "#{subclass_table.to_s.singularize}_id",
                 type: id_type,
-                nullable: false,
                 unique: true,
                 references: { table: subclass_table, column: "id" },
                 defer: true
