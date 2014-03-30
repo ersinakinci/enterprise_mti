@@ -71,58 +71,72 @@ Setup (details)
 
 **1. Create superclass model and migration**
 
-Add `is_a_superclass` to the model.  No modification to the migration is necessary.
+Create your superclass model and migration as you would any other model and migration: `rails g model Shoe`, etc.
+
+Add `has_mti_subclass` to the model.  No modification to the migration is necessary.
 
     class Shoe < ActiveRecord::Base
-    
-      is_a_superclass
+      has_mti_subclass :red_shoe
+      has_mti_subclass :white_shoe
     end
 
-If your subclasses are contained within a module, use the `module:` option:
+If your subclasses are contained within a module, use the `class_name:` option:
 
     class Shoe < ActiveRecord::Base
-
-      is_a_superclass, module: 'Physical::Clothing'
+      has_mti_subclass :red_shoe, class_name: 'Physical::Clothing::RedShoe'
+      has_mti_subclass :white_shoe, class_name: 'Physical::Clothing::WhiteShoe'
     end
 
 **2. Create subclass models and migrations**
 
-First, in the same directory as the superclass model's source file, create a subfolder named after the superclass plus the suffix `_subclasses` and move your subclasses into it.
+Create your subclass models and migrations as you would any other models and migrations: `rails g model RedShoe`, `rails g model WhiteShoe`, etc.
 
-    models earksiinni$ ls
-    closet.rb               red_shoe.rb             shoe.rb                 white_shoe.rb
-    models earksiinni$ mkdir shoe_subclasses
-    models earksiinni$ mv red_shoe.rb ./shoe_subclasses
-    models earksiinni$ mv white_shoe.rb ./shoe_subclasses
-    models earksiinni$ ls
-    closet.rb               shoe.rb                 shoe_subclasses
-    models earksiinni$ ls shoe_subclasses/
-    red_shoe.rb             white_shoe.rb
+Add `belongs_to_mti_superclass` to the model.  No modification to the migration is necessary.
 
-Then modify your subclass models so that they inherit from your superclass.  No modification to the migration is necessary.
-
-    class RedShoe < Shoes
+    class RedShoe < ActiveRecord::Base
+      belongs_to_mti_superclass :shoe
     end
     
-    class WhiteShoe < Shoes
+    class WhiteShoe < ActiveRecord::Base
+      belongs_to_mti_superclass :shoe
     end
 
-**3. Create container class model and migration**
+If your superclass is contained within a module, use the `class_name:` option:
 
-Add one of the relationships defined by Enterprise MTI between the container and the superclass to your container class.  No modification to the migration is necessary.
+    class RedShoe < ActiveRecord::Base
+      belongs_to_mti_superclass :shoe, class_name: 'Physical::Clothing::Shoe'
+    end
+    
+    class WhiteShoe < ActiveRecord::Base
+      belongs_to_mti_superclass :shoe, class_name: 'Physical::Clothing::Shoe'
+    end
+
+**3. (Optional: create container class model and migration)**
+
+Add a relationship between the container and the superclass.  No modification to the migration is necessary.
 
     class Closet < ActiveRecord::Base
+      has_one_mti_superclass :shoe
+    end
     
-      has_one_superclass :shoe
+    class Shoe < ActiveRecord::Base
+      has_mti_subclass :red_shoe
+      has_mti_subclass :white_shoe
+      belongs_to_mti_container_class :closet
     end
 
-Currently, only `has_one_superclass` (i.e., `has_one`) is defined.  Using `has_one_superclass` effectively means that the container model is in a one-to-one relationship with the childen of the superclass model.
+Currently, only `has_one_mti_superclass` (i.e., `has_one`) is defined.  Using `has_one_mti_superclass` effectively means that the container model is in a one-to-one relationship with your subclass models.
 
 If your superclass is contained within a module, use the `module:` option:
 
     class Closet < ActiveRecord::Base
+      has_one_superclass :shoe, class_name: 'Physical::Clothing::Shoe'
+    end
     
-      has_one_superclass :shoe, module: 'Physical::Clothing'
+    class Shoe < ActiveRecord::Base
+      has_mti_subclass :red_shoe, class_name: 'Physical::Clothing::RedShoe'
+      has_mti_subclass :white_shoe, class_name: 'Physical::Clothing::WhiteShoe'
+      belongs_to_mti_container_class :closet, class_name: 'Physical::Clothing::Closet'
     end
 
 **4. Create Enterprise MTI migration**
@@ -162,7 +176,6 @@ Please!  The following are especially needed at the moment:
 * More spec tests
 * Support for more databases
 * Support for one-to-many and many-to-many associations
-* Code cleanup
 
 Issue a pull request and start hacking!
 

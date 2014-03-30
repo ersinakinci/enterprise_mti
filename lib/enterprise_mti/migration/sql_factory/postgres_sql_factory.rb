@@ -56,7 +56,7 @@ module EnterpriseMti
              BEGIN
                SELECT * INTO new_row FROM #{superclass_table} WHERE id = NEW.id;
                IF new_row.id IS NULL THEN
-                 RAISE EXCEPTION 'null value in column \"%\" violates not-null constraint', TG_COLUMN_NAME;
+                 RAISE EXCEPTION 'null value in column \"%\" violates not-null constraint (deferred enterprise_mti trigger)', TG_COLUMN_NAME;
                END IF;
                RETURN NEW;
              END;
