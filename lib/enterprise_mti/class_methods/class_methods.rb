@@ -10,6 +10,77 @@ module EnterpriseMti
     #   garage, car, red_car, white_car (instances of the above classes)
     #   red_intensity, white_intensity  (attributes of above subclasses)
     
+    private
+    
+      # TODO: Refactor
+      define_method :association_methods do |klass|
+        methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
+                  klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
+                  klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
+                  klass.column_methods_hash.keys.collect { |key| key.to_s}
+        return methods
+      end
+    
+      def create_create_methods(caller, target_camel_names, *args)
+        opts = (args.last.class == Hash ? args.last : {})
+        actions = [:create, :create!]
+        caller_name = caller.name.demodulize.underscore
+        
+        target_camel_names.each do |target_camel_name|
+          target_name = target_camel_name.demodulize.underscore
+          actions.each do |action|
+            suffix = "!" if action[-1] == "!"
+            action = action[0..-2] if suffix
+            caller_method, caller_instance_method, target_method, eigenclass = nil
+            
+            if opts[:for_superclass] == true
+              caller_method = "#{action}_#{target_name}#{suffix}"
+              caller_create_instance_method = "#{action}#{suffix}"
+              target_method = "#{action}_without_enterprise_mti#{suffix}"
+            else
+              caller_method = "#{action}_with_enterprise_mti#{suffix}"
+              caller_create_instance_method = "#{action}_without_enterprise_mti#{suffix}"
+              target_method = "#{action}#{suffix}"
+              eigenclass = class << caller; self; end
+            end
+            
+            # E.g., Car.create_red_car!() =>
+            #       red_car = RedCar.create!() && red_car.superclass_instance = Car.create!()
+            caller.define_singleton_method caller_method do |*args, &block|
+              target = target_camel_name.constantize
+              caller_instance = nil
+              ActiveRecord::Base.transaction do
+                args << {} unless args.last.class == Hash
+                
+                caller_args = Array.new(args)
+                caller_args[-1] = caller_args.last.select { |k,v| association_methods(caller).include? k.to_s }
+                target_args = Array.new(args)
+                target_args[-1] = target_args.last.select { |k,v| association_methods(target).include? k.to_s }
+                
+                if opts[:for_superclass] == true
+                  # Caller is superclass, target is subclass
+                  caller_instance = caller.send caller_create_instance_method, *caller_args
+                  target_args[-1][caller_name] = caller_instance
+                  target_instance = target.send target_method, *target_args
+                  caller_instance.send("#{target_name}=", target_instance)
+                  caller_instance.save
+                else
+                  # Caller is subclass, target is superclass
+                  binding.pry
+                  target_instance = target.send target_method, *target_args
+                  caller_args[-1][target_name] = target_instance
+                  caller_instance = caller.send caller_create_instance_method, *caller_args
+                  target_instance.send("#{caller_name}=", caller_instance)
+                  target_instance.save
+                end
+              end
+              caller_instance
+            end
+            eigenclass.alias_method_chain("#{action}#{suffix}".to_sym, :enterprise_mti) unless opts[:for_superclass]
+          end
+        end
+      end
+    
     public
     
     def belongs_to_mti_superclass(*args, &block)
@@ -60,22 +131,70 @@ module EnterpriseMti
       instance_exec self, @subc_camel_names, for_superclass: true, &method(:create_create_methods)
       
       # SUPERCLASS INSTANCE METHODS
-      # Attempt to redirect unknown methods to subclass instances
-      # E.g., car.red_intensity just works
-      # TODO: errors may arise if superclass is the parent of more than one
-      # set of classes.
-      define_method :method_missing_with_enterprise_mti do |method, *args|
-        #binding.pry
+      
+      define_method :mti_subclass_instance do
         self.class.mti_subclasses.each do |subc|
           subc_name = subc.name.demodulize.underscore
-          if self.respond_to?(subc_name) && self.send(subc_name) && self.send(subc_name).respond_to?(method)
-            return self.send(subc_name).send(method, *args)
+          if self.respond_to?(subc_name) && self.send(subc_name)
+            return self.send(subc_name)
           end
         end
-        method_missing_without_enterprise_mti(method, *args)
+        nil
       end
       
-      alias_method_chain :method_missing, :enterprise_mti
+      # Attempt to redirect subclass column methods
+      # E.g., car.red_intensity and car.red_intensity= just work
+#=begin
+      # TODO: Refactor
+      define_method :method_missing do |method, *args, &block|
+        #binding.pry
+        if (self.mti_subclass_instance)
+          klass = self.mti_subclass_instance.class
+          methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
+                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
+                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
+                    klass.column_methods_hash.keys.collect { |key| key.to_s}
+          return self.mti_subclass_instance.send(method, *args, &block) if methods.include?(method.to_s)
+        else
+          super(method, *args, &block)
+        end
+      end
+      
+      define_method :respond_to_missing? do |method, *args|
+        #binding.pry
+        
+        if (self.mti_subclass_instance)
+          klass = self.mti_subclass_instance.class
+          methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
+                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
+                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
+                    klass.column_methods_hash.keys.collect { |key| key.to_s}
+          return true if methods.include?(method.to_s)
+        else
+          super(method, *args)
+        end
+      end
+#=end
+      
+      # method_missing alternative, performance would be better, but since we
+      # can't guarantee the load order of the classes, the constantize call
+      # will generally fail.  TODO?
+=begin
+      (subc_camel_name.constantize.columns - self.columns).each do |target_column|
+        [target_column, "#{target_column}="].each do |action|
+          unless self.respond_to? action
+            define_method action do |*args, &block|
+              self.class.mti_subclass_names.each do |subc_camel_name|
+                subc_name = subc_camel_name.demodulize.underscore
+                if self.send(subc_name)
+                  return self.send(subc_name).send(action, *args, &block)
+                end
+              end
+            end
+          end
+        end
+      end
+=end
     end
     
     def has_one_mti_superclass(*args, &block)
@@ -114,66 +233,7 @@ module EnterpriseMti
       belongs_to *args, &block
     end
     
-    private
     
-      def create_create_methods(caller, target_camel_names, *args)
-        opts = (args.last.class == Hash ? args.last : {})
-        actions = [:create, :create!]
-        caller_name = caller.name.demodulize.underscore
-        
-        target_camel_names.each do |target_camel_name|
-          target_name = target_camel_name.demodulize.underscore
-          actions.each do |action|
-            suffix = "!" if action[-1] == "!"
-            action = action[0..-2] if suffix
-            caller_method, caller_instance_method, target_method, eigenclass = nil
-            
-            if opts[:for_superclass] == true
-              caller_method = "#{action}_#{target_name}#{suffix}"
-              caller_create_instance_method = "#{action}#{suffix}"
-              target_method = "#{action}_without_enterprise_mti#{suffix}"
-            else
-              caller_method = "#{action}_with_enterprise_mti#{suffix}"
-              caller_create_instance_method = "#{action}_without_enterprise_mti#{suffix}"
-              target_method = "#{action}#{suffix}"
-              eigenclass = class << caller; self; end
-            end
-            
-            # E.g., Car.create_red_car!() =>
-            #       red_car = RedCar.create!() && red_car.superclass_instance = Car.create!()
-            caller.define_singleton_method caller_method do |*args, &block|
-              target = target_camel_name.constantize
-              caller_instance = nil
-              ActiveRecord::Base.transaction do
-                args << {} unless args.last.class == Hash
-                
-                caller_args = Array.new(args)
-                caller_args[-1] = caller_args.last.select { |k,v| caller.column_names.include? k.to_s }
-                target_args = Array.new(args)
-                target_args[-1] = target_args.last.select { |k,v| target.column_names.include? k.to_s }
-                
-                if opts[:for_superclass] == true
-                  # Caller is superclass, target is subclass
-                  caller_instance = caller.send caller_create_instance_method, *caller_args
-                  target_args[-1][caller_name] = caller_instance
-                  target_instance = target.send target_method, *target_args
-                  caller_instance.send("#{target_name}=", target_instance)
-                  caller_instance.save
-                else
-                  # Caller is subclass, target is superclass
-                  target_instance = target.send target_method, *target_args
-                  caller_args[-1][target_name] = target_instance
-                  caller_instance = caller.send caller_create_instance_method, *caller_args
-                  target_instance.send("#{caller_name}=", caller_instance)
-                  target_instance.save
-                end
-              end
-              caller_instance
-            end
-            eigenclass.alias_method_chain("#{action}#{suffix}".to_sym, :enterprise_mti) unless opts[:for_superclass]
-          end
-        end
-      end
     
   end
 end
