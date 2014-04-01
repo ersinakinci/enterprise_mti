@@ -12,15 +12,6 @@ module EnterpriseMti
     
     private
     
-      # TODO: Refactor
-      define_method :association_methods do |klass|
-        methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
-                  klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
-                  klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
-                  klass.column_methods_hash.keys.collect { |key| key.to_s}
-        return methods
-      end
-    
       def create_create_methods(caller, target_camel_names, *args)
         opts = (args.last.class == Hash ? args.last : {})
         actions = [:create, :create!]
@@ -53,9 +44,9 @@ module EnterpriseMti
                 args << {} unless args.last.class == Hash
                 
                 caller_args = Array.new(args)
-                caller_args[-1] = caller_args.last.select { |k,v| association_methods(caller).include? k.to_s }
+                caller_args[-1] = caller_args.last.select { |k,v| EnterpriseMti::ClassMethods::column_methods_and_types(caller).include? k.to_s }
                 target_args = Array.new(args)
-                target_args[-1] = target_args.last.select { |k,v| association_methods(target).include? k.to_s }
+                target_args[-1] = target_args.last.select { |k,v| EnterpriseMti::ClassMethods::column_methods_and_types(target).include? k.to_s }
                 
                 if opts[:for_superclass] == true
                   # Caller is superclass, target is subclass
@@ -82,6 +73,14 @@ module EnterpriseMti
       end
     
     public
+    
+    def self.column_methods_and_types(klass)
+      methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
+                klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
+                klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
+                klass.column_methods_hash.keys.collect { |key| key.to_s}
+      return methods
+    end
     
     def belongs_to_mti_superclass(*args, &block)
       opts = (args.last.class == Hash ? args.last : {})
@@ -142,6 +141,18 @@ module EnterpriseMti
         nil
       end
       
+      define_method :mti_attributes_hash do
+        sub_attrs = []
+        sub_attrs = self.mti_subclass_instance.class.columns_hash.values if self.mti_subclass_instance
+        
+        attrs = (self.class.columns_hash.values + sub_attrs).index_by { |rec| rec.name }.values
+        attrs.inject({}) { |ret, element| ret[element.name] = element.type; ret }
+      end
+      
+      define_method :mti_useful_attributes_hash do
+        self.mti_attributes_hash.select {|k,v| k !~ /(^id|_id|created_at|updated_at)$/}
+      end
+      
       # Attempt to redirect subclass column methods
       # E.g., car.red_intensity and car.red_intensity= just work
 #=begin
@@ -150,10 +161,7 @@ module EnterpriseMti
         #binding.pry
         if (self.mti_subclass_instance)
           klass = self.mti_subclass_instance.class
-          methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
-                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
-                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
-                    klass.column_methods_hash.keys.collect { |key| key.to_s}
+          methods = EnterpriseMti::ClassMethods::column_methods_and_types(klass)
           return self.mti_subclass_instance.send(method, *args, &block) if methods.include?(method.to_s)
         else
           super(method, *args, &block)
@@ -165,10 +173,7 @@ module EnterpriseMti
         
         if (self.mti_subclass_instance)
           klass = self.mti_subclass_instance.class
-          methods = klass.reflect_on_all_associations.collect { |r| r.name.to_s } +
-                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}=" } +
-                    klass.reflect_on_all_associations.collect { |r| "#{r.name.to_s}?" } +
-                    klass.column_methods_hash.keys.collect { |key| key.to_s}
+          methods = EnterpriseMti::ClassMethods::column_methods_and_types(klass)
           return true if methods.include?(method.to_s)
         else
           super(method, *args)
@@ -232,8 +237,5 @@ module EnterpriseMti
     def belongs_to_mti_container_class(*args, &block)
       belongs_to *args, &block
     end
-    
-    
-    
   end
 end
