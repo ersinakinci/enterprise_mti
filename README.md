@@ -113,7 +113,7 @@ Add one of the relationships defined by Enterprise MTI between the container and
       has_one_superclass :shoe
     end
 
-Currently, only `has_one_superclass` (i.e., `has_one`) is defined.  Using `has_one_superclass` effectively means that the container model is in a one-to-one relationship with the childen of the superclass model.
+Currently, only `has_one_superclass` (i.e., `has_one`) is defined.  Using `has_one_superclass` effectively means that the container model is in a one-to-one relationship with the children of the superclass model.
 
 If your superclass is contained within a module, use the `module:` option:
 
